@@ -1,0 +1,84 @@
+version: '3'
+services:
+  myjenkins:
+    ports:
+     - "8099:8080"
+     - "50000:50000"
+    volumes:
+     - /var/jenkins_data:/var/jenkins_home
+    image: "jenkins"
+    labels:
+     - "com.test.description= Jenkins Server"
+     - "com.test.category=Infrastructure"
+    logging:
+     driver: "gelf"
+     options:
+      gelf-address: udp://127.0.0.1:12201
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+  myportainer:
+    image: portainer
+    ports:
+     - "9000:9000"
+    volumes:
+     - /var/portainer-data:/data
+     - /var/run/docker.sock:/var/run/docker.sock
+    image: "portainer/portainer"
+    labels:
+     - "com.test.description=Dockers Web GUI"
+     - "com.test.category=Infrastructure"
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+  mynginx:
+    image: nginx
+    ports:
+     - "8079:80"
+    labels:
+     - "com.test.description= Web Server Nginx"
+     - "com.test.category=WebServer"
+    deploy:
+     mode: replicated
+     replicas: 1
+     labels: [NGINX]
+     placement:
+      constraints: [node.role == worker]
+  graylog-mongo:
+    image: "mongo:3"
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+  some-elasticsearch:
+    image: "elasticsearch:2"
+    command: "elasticsearch -Des.cluster.name='graylog'"
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+  graylog:
+    image: graylog2/server:2.1.1-1
+    environment:
+      GRAYLOG_PASSWORD_SECRET: somepasswordpepper
+      GRAYLOG_ROOT_PASSWORD_SHA2: 8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+      GRAYLOG_WEB_ENDPOINT_URI: http://10.1.10.90:9009/api
+    links:
+      - graylog-mongo:mongo
+      - some-elasticsearch:elasticsearch
+    ports:
+      - "9009:9000"
+      - 12201/udp
+      - 1514/udp
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+  myvisualizer:
+    image: dockersamples/visualizer:stable
+    ports:
+      - "8080:8080"
+    stop_grace_period: 1m30s
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    deploy:
+      placement:
+        constraints: [node.role == manager]
+
