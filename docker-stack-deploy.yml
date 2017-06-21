@@ -81,4 +81,3 @@ services:
     deploy:
       placement:
         constraints: [node.role == manager]
-
