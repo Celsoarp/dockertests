@@ -1,0 +1,91 @@
+version: '2'
+services:
+  myjenkins:
+    container_name: "myjenkins"
+    ports:
+     - "8099:8080"
+     - "50000:50000"
+    volumes:
+     - /var/jenkins_data:/var/jenkins_home
+    image: "jenkins"
+    labels:
+     - "com.test.description= Jenkins Server"
+     - "com.test.category=Infrastructure"
+    logging:
+     driver: "gelf"
+     options:
+      gelf-address: "udp://localhost:12201"
+  myportainer:
+    container_name: "myportainer"
+    ports:
+     - "9000:9000"
+    volumes:
+     - /var/portainer-data:/data
+     - /var/run/docker.sock:/var/run/docker.sock
+    image: "portainer/portainer"
+    labels:
+     - "com.test.description=Dockers Web GUI"
+     - "com.test.category=Infrastructure"
+  mymongodb:
+    container_name: "mymongodb"
+    image: "mongo"
+    volumes:
+     - /var/mongodb_data:/data
+    labels:
+     - "com.test.description=BBDD NO SQL Mongo"
+     - "com.test.category=SGBD"
+  mynodejs:
+    container_name: "mynodejs"
+    image: node
+    ports:
+     - "8082:8082"
+    volumes:
+     - /var/nodejs_data:/data
+    links:
+     - mymongodb
+    working_dir: /data
+    command: node /data/index_ws.js
+    stdin_open: true
+    tty: true
+    labels:
+     - "com.test.description=NodeJS"
+     - "com.test.category=WebServer"
+  mynginx:
+    container_name: "mynginx"
+    image: nginx
+    ports:
+     - "8079:80"
+    volumes:
+     - /var/nginx_data:/usr/share/nginx/html
+    labels:
+     - "com.test.description=Web Server Nginx"
+     - "com.test.category=WebServer"
+  mywildfly:
+    container_name: "mywildfly"
+    build: wildflyDocker/.
+    ports:
+     - "9990:9990"
+     - "9080:8080"
+    volumes:
+     - /var/wildfly_data:/opt/jboss/wildfly/standalone/deployments/
+    labels:
+     - "com.test.description=Web Server WildFly"
+     - "com.test.category=WebServer"
+  graylog-mongo:
+    image: "mongo:3"
+  some-elasticsearch:
+    image: "elasticsearch:2"
+    command: "elasticsearch -Des.cluster.name='graylog'"
+  graylog:
+    image: graylog2/server:2.1.1-1
+    environment:
+      GRAYLOG_PASSWORD_SECRET: somepasswordpepper
+      GRAYLOG_ROOT_PASSWORD_SHA2: 8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+      GRAYLOG_WEB_ENDPOINT_URI: http://10.1.10.90:9009/api
+    links:
+      - graylog-mongo:mongo
+      - some-elasticsearch:elasticsearch
+    ports:
+      - "9009:9000"
+      - "12201/udp:12201/udp"
+      - "1514/udp:1514/udp"
